@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+html, body { margin: 0; height: 100%; background: white; }
+.globes {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0;
+  padding: 10px;
+  box-sizing: border-box;
+}
+.arrow-wrap {
+  display: flex;
+  align-self: center;
+  font-size: 3rem;
+  color: #555;
+  padding: 0 8px;
+}
+.globe-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 50%;
+  min-width: 0;
+}
+.globe-single {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 100%;
+  margin: 0 auto;
+}
+.globe-single .globe-container {
+  width: auto;
+  height: 100%;
+}
+.globe-label {
+  font: 600 1.2rem system-ui, sans-serif;
+  color: #333;
+  margin-bottom: 4px;
+}
+.globe-container {
+  width: 100%;
+  aspect-ratio: 1;
+}
+</style>
+</head>
+<body>
+<div class="globe-single">
+  <div class="globe-container" id="globe"></div>
+</div>
+
+<script type="module">
+import * as Plot from 'https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm';
+import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
+import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3/+esm';
+
+function reverseRings(rawData) {
+  return {
+    type: rawData.type,
+    features: rawData.features.map(f => {
+      if (f.geometry.type === 'Polygon') {
+        return { ...f, geometry: { ...f.geometry,
+          coordinates: f.geometry.coordinates.map(r => r.slice().reverse())
+        }};
+      } else if (f.geometry.type === 'MultiPolygon') {
+        return { ...f, geometry: { ...f.geometry,
+          coordinates: f.geometry.coordinates.map(p => p.map(r => r.slice().reverse()))
+        }};
+      }
+      return f;
+    })
+  };
+}
+
+function getCentroid(rawData) {
+  const pts = [];
+  rawData.features.forEach(f => {
+    const g = f.geometry;
+    if (g.type === 'Polygon') g.coordinates.forEach(r => pts.push(...r));
+    else if (g.type === 'MultiPolygon') g.coordinates.forEach(p => p.forEach(r => pts.push(...r)));
+  });
+  return pts.length ? d3.geoCentroid({ type: 'MultiPoint', coordinates: pts }) : [0, 0];
+}
+
+const versor = {
+  cartesian(e) {
+    const l = e[0]*Math.PI/180, p = e[1]*Math.PI/180, cp = Math.cos(p);
+    return [cp*Math.cos(l), cp*Math.sin(l), Math.sin(p)];
+  },
+  rotation(q) {
+    return [
+      Math.atan2(2*(q[0]*q[1]+q[2]*q[3]),1-2*(q[1]*q[1]+q[2]*q[2]))*180/Math.PI,
+      Math.asin(Math.max(-1,Math.min(1,2*(q[0]*q[2]-q[3]*q[1]))))*180/Math.PI,
+      Math.atan2(2*(q[0]*q[3]+q[1]*q[2]),1-2*(q[2]*q[2]+q[3]*q[3]))*180/Math.PI
+    ];
+  },
+  delta(v0, v1) {
+    const w = this.cross(v0,v1), l = Math.sqrt(this.dot(w,w));
+    if (!l) return [1,0,0,0];
+    const t = Math.acos(Math.max(-1,Math.min(1,this.dot(v0,v1))))/2, s = Math.sin(t);
+    return [Math.cos(t), w[2]/l*s, -w[1]/l*s, w[0]/l*s];
+  },
+  multiply(a, b) {
+    return [
+      a[0]*b[0]-a[1]*b[1]-a[2]*b[2]-a[3]*b[3],
+      a[0]*b[1]+a[1]*b[0]+a[2]*b[3]-a[3]*b[2],
+      a[0]*b[2]-a[1]*b[3]+a[2]*b[0]+a[3]*b[1],
+      a[0]*b[3]+a[1]*b[2]-a[2]*b[1]+a[3]*b[0]
+    ];
+  },
+  from(r) {
+    const l=r[0]/2*Math.PI/180, p=r[1]/2*Math.PI/180, g=r[2]/2*Math.PI/180;
+    const sl=Math.sin(l),cl=Math.cos(l),sp=Math.sin(p),cp=Math.cos(p),sg=Math.sin(g),cg=Math.cos(g);
+    return [cl*cp*cg+sl*sp*sg, sl*cp*cg-cl*sp*sg, cl*sp*cg+sl*cp*sg, cl*cp*sg-sl*sp*cg];
+  },
+  cross(a,b) { return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; },
+  dot(a,b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+};
+
+const landTopo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json')).json();
+const land = feature(landTopo, landTopo.objects.land);
+
+function createGlobe(containerId, rawData, arrowStep, sync) {
+  const fc = reverseRings(rawData);
+  const container = document.getElementById(containerId);
+  const localState = {};
+
+  function getSize() {
+    const w = container.offsetWidth || 400;
+    return { width: w, height: w };
+  }
+
+  function render() {
+    const sz = getSize();
+    localState.width = sz.width;
+    localState.height = sz.height;
+
+    const polygons = {
+      type: 'FeatureCollection',
+      features: fc.features.filter(f =>
+        f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')
+    };
+
+    const marks = [
+      Plot.geo(land, { stroke: '#88b', fill: 'none', strokeWidth: 0.8, strokeOpacity: 0.8 }),
+      Plot.graticule({ strokeOpacity: 0.06 }),
+      Plot.sphere({ strokeWidth: 2 }),
+    ];
+
+    // Separate solid and dashed polygons
+    const solidPolygons = {
+      type: 'FeatureCollection',
+      features: polygons.features.filter(f => !f.properties?.strokeDasharray)
+    };
+    const dashedPolygons = {
+      type: 'FeatureCollection',
+      features: polygons.features.filter(f => f.properties?.strokeDasharray)
+    };
+
+    if (solidPolygons.features.length > 0) {
+      marks.push(Plot.geo(solidPolygons, {
+        fill: d => d.properties?.fill || 'red',
+        fillOpacity: d => d.properties?.fillOpacity ?? 0.45,
+        stroke: d => d.properties?.stroke || d.properties?.fill || 'red',
+        strokeWidth: d => d.properties?.strokeWidth ?? 1,
+        strokeOpacity: d => d.properties?.strokeOpacity ?? 0.7,
+      }));
+    }
+
+    if (dashedPolygons.features.length > 0) {
+      marks.push(Plot.geo(dashedPolygons, {
+        fill: d => d.properties?.fill || 'red',
+        fillOpacity: d => d.properties?.fillOpacity ?? 0.45,
+        stroke: d => d.properties?.stroke || d.properties?.fill || 'red',
+        strokeWidth: d => d.properties?.strokeWidth ?? 1,
+        strokeOpacity: d => d.properties?.strokeOpacity ?? 0.7,
+      }));
+    }
+
+    // Store dashed polygon info for post-processing
+    const dashedInfo = dashedPolygons.features.map(f => f.properties?.strokeDasharray);
+
+    if (arrowStep > 0) {
+      let edgeIndex = 0;
+      rawData.features.forEach(f => {
+        if (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon') return;
+        if (f.properties?.strokeDasharray) return;  // skip dashed polygons
+        const rings = f.geometry.type === 'Polygon'
+          ? f.geometry.coordinates
+          : f.geometry.coordinates.flat();
+        rings.forEach(ring => {
+          for (let i = 0; i < ring.length - 1; i++) {
+            if (edgeIndex % arrowStep === 0) {
+              const interpolate = d3.geoInterpolate(ring[i], ring[i + 1]);
+              marks.push(Plot.line([interpolate(0.45), interpolate(0.55)], {
+                x: d => d[0], y: d => d[1],
+                markerEnd: 'arrow', stroke: 'darkred', strokeWidth: 1.5,
+              }));
+            }
+            edgeIndex++;
+          }
+        });
+      });
+    }
+
+    const svg = Plot.plot({
+      width: localState.width,
+      height: localState.height,
+      projection: { type: 'orthographic', rotate: sync.rotate, inset: 1 },
+      marks,
+    });
+
+    container.innerHTML = '';
+    container.appendChild(svg);
+
+    // Apply stroke-dasharray to dashed polygons
+    if (dashedInfo.length > 0) {
+      svg.querySelectorAll('path').forEach(path => {
+        if (path.getAttribute('fill') === 'none') {
+          const da = dashedInfo.find(d => d);
+          if (da) path.setAttribute('stroke-dasharray', da);
+        }
+      });
+    }
+
+    const proj = d3.geoOrthographic()
+      .rotate(sync.rotate)
+      .translate([localState.width/2, localState.height/2])
+      .scale(Math.min(localState.width, localState.height)/2 - 1);
+    let v0, q0, r0;
+
+    d3.select(svg).call(d3.drag()
+      .on('start', event => {
+        proj.rotate(sync.rotate)
+          .translate([localState.width/2, localState.height/2])
+          .scale(Math.min(localState.width, localState.height)/2 - 1);
+        const inv = proj.invert([event.x, event.y]);
+        if (inv) { v0 = versor.cartesian(inv); r0 = sync.rotate; q0 = versor.from(r0); }
+      })
+      .on('drag', event => {
+        if (!v0) return;
+        proj.rotate(r0);
+        const inv = proj.invert([event.x, event.y]);
+        if (!inv) return;
+        const v1 = versor.cartesian(inv);
+        const q1 = versor.multiply(q0, versor.delta(v0, v1));
+        sync.rotate = versor.rotation(q1);
+        sync.renders.forEach(r => r());
+      })
+    );
+    d3.select(svg).on('dblclick', () => {
+      sync.rotate = sync.centerRotate.slice();
+      sync.renders.forEach(r => r());
+    });
+  }
+
+  sync.renders.push(render);
+  render();
+}
+
+const data0 = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "fill": "#dc3545",
+        "fillOpacity": 0.3,
+        "stroke": "#dc3545",
+        "strokeWidth": 2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [150, -10],
+          [-150, -10],
+          [-150, 30],
+          [150, 30],
+          [150, -10]
+        ]]
+      }
+    }
+  ]
+}
+;
+const centerRotate = [-180, -10, 0];
+const sync = { rotate: centerRotate.slice(), centerRotate, renders: [] };
+createGlobe("globe", data0, 1, sync);
+window.addEventListener('resize', () => sync.renders.forEach(r => r()));
+</script>
+</body>
+</html>

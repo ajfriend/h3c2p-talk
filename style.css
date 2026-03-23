@@ -1,0 +1,31 @@
+.res-label {
+  font-size: 0.7em;
+  font-weight: bold;
+  color: #333;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.2em 0.5em;
+  border-radius: 0.2em;
+}
+
+/* Fill the slide area (1050x700) */
+.fullscreen-iframe {
+  position: absolute;
+  border: none;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.overflow-image30 {
+  top: 30%;
+  max-width: none !important;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90vw;
+  height: auto;
+}

@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+html, body { margin: 0; height: 100%; background: white; }
+.globes {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0;
+  padding: 10px;
+  box-sizing: border-box;
+}
+.arrow-wrap {
+  display: flex;
+  align-self: center;
+  font-size: 3rem;
+  color: #555;
+  padding: 0 8px;
+}
+.globe-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 50%;
+  min-width: 0;
+}
+.globe-single {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 100%;
+  margin: 0 auto;
+}
+.globe-single .globe-container {
+  width: auto;
+  height: 100%;
+}
+.globe-label {
+  font: 600 1.2rem system-ui, sans-serif;
+  color: #333;
+  margin-bottom: 4px;
+}
+.globe-container {
+  width: 100%;
+  aspect-ratio: 1;
+}
+</style>
+</head>
+<body>
+<div class="globe-single">
+  <div class="globe-container" id="globe"></div>
+</div>
+
+<script type="module">
+import * as Plot from 'https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm';
+import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
+import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3/+esm';
+
+function reverseRings(rawData) {
+  return {
+    type: rawData.type,
+    features: rawData.features.map(f => {
+      if (f.geometry.type === 'Polygon') {
+        return { ...f, geometry: { ...f.geometry,
+          coordinates: f.geometry.coordinates.map(r => r.slice().reverse())
+        }};
+      } else if (f.geometry.type === 'MultiPolygon') {
+        return { ...f, geometry: { ...f.geometry,
+          coordinates: f.geometry.coordinates.map(p => p.map(r => r.slice().reverse()))
+        }};
+      }
+      return f;
+    })
+  };
+}
+
+function getCentroid(rawData) {
+  const pts = [];
+  rawData.features.forEach(f => {
+    const g = f.geometry;
+    if (g.type === 'Polygon') g.coordinates.forEach(r => pts.push(...r));
+    else if (g.type === 'MultiPolygon') g.coordinates.forEach(p => p.forEach(r => pts.push(...r)));
+  });
+  return pts.length ? d3.geoCentroid({ type: 'MultiPoint', coordinates: pts }) : [0, 0];
+}
+
+const versor = {
+  cartesian(e) {
+    const l = e[0]*Math.PI/180, p = e[1]*Math.PI/180, cp = Math.cos(p);
+    return [cp*Math.cos(l), cp*Math.sin(l), Math.sin(p)];
+  },
+  rotation(q) {
+    return [
+      Math.atan2(2*(q[0]*q[1]+q[2]*q[3]),1-2*(q[1]*q[1]+q[2]*q[2]))*180/Math.PI,
+      Math.asin(Math.max(-1,Math.min(1,2*(q[0]*q[2]-q[3]*q[1]))))*180/Math.PI,
+      Math.atan2(2*(q[0]*q[3]+q[1]*q[2]),1-2*(q[2]*q[2]+q[3]*q[3]))*180/Math.PI
+    ];
+  },
+  delta(v0, v1) {
+    const w = this.cross(v0,v1), l = Math.sqrt(this.dot(w,w));
+    if (!l) return [1,0,0,0];
+    const t = Math.acos(Math.max(-1,Math.min(1,this.dot(v0,v1))))/2, s = Math.sin(t);
+    return [Math.cos(t), w[2]/l*s, -w[1]/l*s, w[0]/l*s];
+  },
+  multiply(a, b) {
+    return [
+      a[0]*b[0]-a[1]*b[1]-a[2]*b[2]-a[3]*b[3],
+      a[0]*b[1]+a[1]*b[0]+a[2]*b[3]-a[3]*b[2],
+      a[0]*b[2]-a[1]*b[3]+a[2]*b[0]+a[3]*b[1],
+      a[0]*b[3]+a[1]*b[2]-a[2]*b[1]+a[3]*b[0]
+    ];
+  },
+  from(r) {
+    const l=r[0]/2*Math.PI/180, p=r[1]/2*Math.PI/180, g=r[2]/2*Math.PI/180;
+    const sl=Math.sin(l),cl=Math.cos(l),sp=Math.sin(p),cp=Math.cos(p),sg=Math.sin(g),cg=Math.cos(g);
+    return [cl*cp*cg+sl*sp*sg, sl*cp*cg-cl*sp*sg, cl*sp*cg+sl*cp*sg, cl*cp*sg-sl*sp*cg];
+  },
+  cross(a,b) { return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; },
+  dot(a,b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+};
+
+const landTopo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json')).json();
+const land = feature(landTopo, landTopo.objects.land);
+
+function createGlobe(containerId, rawData, arrowStep, sync) {
+  const fc = reverseRings(rawData);
+  const container = document.getElementById(containerId);
+  const localState = {};
+
+  function getSize() {
+    const w = container.offsetWidth || 400;
+    return { width: w, height: w };
+  }
+
+  function render() {
+    const sz = getSize();
+    localState.width = sz.width;
+    localState.height = sz.height;
+
+    const polygons = {
+      type: 'FeatureCollection',
+      features: fc.features.filter(f =>
+        f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')
+    };
+
+    const marks = [
+      Plot.geo(land, { stroke: '#88b', fill: 'none', strokeWidth: 0.8, strokeOpacity: 0.8 }),
+      Plot.graticule({ strokeOpacity: 0.06 }),
+      Plot.sphere({ strokeWidth: 2 }),
+    ];
+
+    // Separate solid and dashed polygons
+    const solidPolygons = {
+      type: 'FeatureCollection',
+      features: polygons.features.filter(f => !f.properties?.strokeDasharray)
+    };
+    const dashedPolygons = {
+      type: 'FeatureCollection',
+      features: polygons.features.filter(f => f.properties?.strokeDasharray)
+    };
+
+    if (solidPolygons.features.length > 0) {
+      marks.push(Plot.geo(solidPolygons, {
+        fill: d => d.properties?.fill || 'red',
+        fillOpacity: d => d.properties?.fillOpacity ?? 0.45,
+        stroke: d => d.properties?.stroke || d.properties?.fill || 'red',
+        strokeWidth: d => d.properties?.strokeWidth ?? 1,
+        strokeOpacity: d => d.properties?.strokeOpacity ?? 0.7,
+      }));
+    }
+
+    if (dashedPolygons.features.length > 0) {
+      marks.push(Plot.geo(dashedPolygons, {
+        fill: d => d.properties?.fill || 'red',
+        fillOpacity: d => d.properties?.fillOpacity ?? 0.45,
+        stroke: d => d.properties?.stroke || d.properties?.fill || 'red',
+        strokeWidth: d => d.properties?.strokeWidth ?? 1,
+        strokeOpacity: d => d.properties?.strokeOpacity ?? 0.7,
+      }));
+    }
+
+    // Store dashed polygon info for post-processing
+    const dashedInfo = dashedPolygons.features.map(f => f.properties?.strokeDasharray);
+
+    if (arrowStep > 0) {
+      let edgeIndex = 0;
+      rawData.features.forEach(f => {
+        if (f.geometry.type !== 'Polygon' && f.geometry.type !== 'MultiPolygon') return;
+        if (f.properties?.strokeDasharray) return;  // skip dashed polygons
+        const rings = f.geometry.type === 'Polygon'
+          ? f.geometry.coordinates
+          : f.geometry.coordinates.flat();
+        rings.forEach(ring => {
+          for (let i = 0; i < ring.length - 1; i++) {
+            if (edgeIndex % arrowStep === 0) {
+              const interpolate = d3.geoInterpolate(ring[i], ring[i + 1]);
+              marks.push(Plot.line([interpolate(0.45), interpolate(0.55)], {
+                x: d => d[0], y: d => d[1],
+                markerEnd: 'arrow', stroke: 'darkred', strokeWidth: 1.5,
+              }));
+            }
+            edgeIndex++;
+          }
+        });
+      });
+    }
+
+    const svg = Plot.plot({
+      width: localState.width,
+      height: localState.height,
+      projection: { type: 'orthographic', rotate: sync.rotate, inset: 1 },
+      marks,
+    });
+
+    container.innerHTML = '';
+    container.appendChild(svg);
+
+    // Apply stroke-dasharray to dashed polygons
+    if (dashedInfo.length > 0) {
+      svg.querySelectorAll('path').forEach(path => {
+        if (path.getAttribute('fill') === 'none') {
+          const da = dashedInfo.find(d => d);
+          if (da) path.setAttribute('stroke-dasharray', da);
+        }
+      });
+    }
+
+    const proj = d3.geoOrthographic()
+      .rotate(sync.rotate)
+      .translate([localState.width/2, localState.height/2])
+      .scale(Math.min(localState.width, localState.height)/2 - 1);
+    let v0, q0, r0;
+
+    d3.select(svg).call(d3.drag()
+      .on('start', event => {
+        proj.rotate(sync.rotate)
+          .translate([localState.width/2, localState.height/2])
+          .scale(Math.min(localState.width, localState.height)/2 - 1);
+        const inv = proj.invert([event.x, event.y]);
+        if (inv) { v0 = versor.cartesian(inv); r0 = sync.rotate; q0 = versor.from(r0); }
+      })
+      .on('drag', event => {
+        if (!v0) return;
+        proj.rotate(r0);
+        const inv = proj.invert([event.x, event.y]);
+        if (!inv) return;
+        const v1 = versor.cartesian(inv);
+        const q1 = versor.multiply(q0, versor.delta(v0, v1));
+        sync.rotate = versor.rotation(q1);
+        sync.renders.forEach(r => r());
+      })
+    );
+    d3.select(svg).on('dblclick', () => {
+      sync.rotate = sync.centerRotate.slice();
+      sync.renders.forEach(r => r());
+    });
+  }
+
+  sync.renders.push(render);
+  render();
+}
+
+const data0 = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "fill": "none",
+        "stroke": "#999999",
+        "strokeWidth": 1,
+        "strokeDasharray": "4 2"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -179.170112546831,
+              43.33462463706695
+            ],
+            [
+              179.9534193241767,
+              38.728779390762334
+            ],
+            [
+              174.49688633843544,
+              36.85680682151307
+            ],
+            [
+              174.02804175387834,
+              32.1119243692579
+            ],
+            [
+              169.07436240121478,
+              29.9547386287809
+            ],
+            [
+              168.91929058653923,
+              25.257056432213375
+            ],
+            [
+              164.45727251367725,
+              23.004725058862295
+            ],
+            [
+              164.53519134064652,
+              18.52280839538614
+            ],
+            [
+              160.52670878987635,
+              16.340968799924067
+            ],
+            [
+              160.7733897026288,
+              12.194726726168003
+            ],
+            [
+              164.67056230846524,
+              10.175448079467838
+            ],
+            [
+              164.7007803629394,
+              8.237083943199265
+            ],
+            [
+              164.93539603741021,
+              6.119591258608642
+            ],
+            [
+              168.3352524578736,
+              4.467031609784524
+            ],
+            [
+              172.03418236939353,
+              6.172978893164637
+            ],
+            [
+              175.46041201203371,
+              4.248592317017825
+            ],
+            [
+              179.2171608248945,
+              5.88992175431389
+            ],
+            [
+              -178.02519665249852,
+              2.9040374505798114
+            ],
+            [
+              -174.31673738369324,
+              3.8210244943304374
+            ],
+            [
+              -171.37544324872502,
+              0.649870565576401
+            ],
+            [
+              -167.31261713417402,
+              1.5147974903819574
+            ],
+            [
+              -164.25615857265893,
+              -1.7743965588128086
+            ],
+            [
+              -159.93112334382027,
+              -0.9446533902388665
+            ],
+            [
+              -156.8531091350144,
+              -4.259065522271725
+            ],
+            [
+              -152.3980821982831,
+              -3.4345808068957697
+            ],
+            [
+              -149.4028814909321,
+              -6.672537737437516
+            ],
+            [
+              -144.9683236097968,
+              -5.820413131280587
+            ],
+            [
+              -143.3961790952625,
+              -1.706579969821454
+            ],
+            [
+              -138.95903110794228,
+              -0.8353130739527114
+            ],
+            [
+              -137.3063271216714,
+              3.372828505596593
+            ],
+            [
+              -132.96499017492758,
+              4.158942627265325
+            ],
+            [
+              -131.26895225504,
+              8.320295172124068
+            ],
+            [
+              -133.89520751564908,
+              11.884131145297399
+            ],
+            [
+              -132.14080471892913,
+              16.072271835802038
+            ],
+            [
+              -134.89965579269537,
+              19.7532105149965
+            ],
+            [
+              -133.08381598345164,
+              23.820431161854447
+            ],
+            [
+              -135.98689147817444,
+              27.469138609544558
+            ],
+            [
+              -140.91889130500928,
+              27.061192038819836
+            ],
+            [
+              -144.17342232410294,
+              30.569950882968854
+            ],
+            [
+              -149.34707529879068,
+              29.89183008460252
+            ],
+            [
+              -152.85043045733752,
+              33.12732053866678
+            ],
+            [
+              -158.04649474959947,
+              32.12156651323389
+            ],
+            [
+              -161.64707805135708,
+              34.994006697107615
+            ],
+            [
+              -159.94762734735153,
+              39.09941640444715
+            ],
+            [
+              -163.39292691687498,
+              42.461841701752746
+            ],
+            [
+              -168.8876761772056,
+              41.53861492567143
+            ],
+            [
+              -173.2513616288856,
+              44.74985555511408
+            ],
+            [
+              -179.170112546831,
+              43.33462463706695
+            ]
+          ],
+          [
+            [
+              -157.6068486027842,
+              20.259691594705036
+            ],
+            [
+              -156.08998858841755,
+              24.696711258039056
+            ],
+            [
+              -151.04796662686522,
+              25.669243623986258
+            ],
+            [
+              -147.69594788211106,
+              22.16693900740581
+            ],
+            [
+              -142.7188705783351,
+              22.885971422359724
+            ],
+            [
+              -139.6214919325493,
+              19.2239309458196
+            ],
+            [
+              -141.37151007296615,
+              14.881959131410003
+            ],
+            [
+              -138.42043748614526,
+              11.22287623237951
+            ],
+            [
+              -140.12125038010964,
+              6.870649308036964
+            ],
+            [
+              -144.72979242136543,
+              6.045591181415267
+            ],
+            [
+              -146.33638072286848,
+              1.6772949381945044
+            ],
+            [
+              -150.91862197114955,
+              0.7969950664894166
+            ],
+            [
+              -154.0294052002189,
+              4.260374459536214
+            ],
+            [
+              -158.59967491814012,
+              3.335734857517349
+            ],
+            [
+              -161.77338167921764,
+              6.766536253596436
+            ],
+            [
+              -160.44607430026895,
+              11.231115019630433
+            ],
+            [
+              -163.71455965998953,
+              14.623074892227512
+            ],
+            [
+              -162.39694129463984,
+              19.114485874069658
+            ],
+            [
+              -157.6068486027842,
+              20.259691594705036
+            ]
+          ],
+          [
+            [
+              -178.95063664056067,
+              17.74333218723816
+            ],
+            [
+              -175.45827111402537,
+              15.285730312483953
+            ],
+            [
+              -176.35806599111405,
+              11.05195584369349
+            ],
+            [
+              -178.23815999124182,
+              10.46324037683843
+            ],
+            [
+              179.77693144202632,
+              9.615942399155198
+            ],
+            [
+              176.28993210653294,
+              11.794175727566111
+            ],
+            [
+              172.29426677728955,
+              9.978189493251357
+            ],
+            [
+              168.53745793093609,
+              12.10200548276957
+            ],
+            [
+              168.65279280829242,
+              16.286127926718756
+            ],
+            [
+              172.88878640797157,
+              18.30669067889132
+            ],
+            [
+              173.23062212965775,
+              22.777763428069576
+            ],
+            [
+              177.84694371159145,
+              24.75690942135447
+            ],
+            [
+              -178.22376950605553,
+              22.092681232201556
+            ],
+            [
+              -178.95063664056067,
+              17.74333218723816
+            ]
+          ],
+          [
+            [
+              -175.56432922504848,
+              35.741206971176496
+            ],
+            [
+              -170.27191812997154,
+              37.14623592274974
+            ],
+            [
+              -166.5289282511271,
+              33.96535450751626
+            ],
+            [
+              -167.88337203384341,
+              29.62550789823012
+            ],
+            [
+              -172.64626329548403,
+              28.20896181794974
+            ],
+            [
+              -176.54267313535857,
+              31.148162090824524
+            ],
+            [
+              -175.56432922504848,
+              35.741206971176496
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "fill": "#dc3545",
+        "fillOpacity": 0.3,
+        "stroke": "#dc3545",
+        "strokeWidth": 2
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -175.56432922504848,
+              35.741206971176496
+            ],
+            [
+              -170.27191812997154,
+              37.14623592274974
+            ],
+            [
+              -166.5289282511271,
+              33.96535450751626
+            ],
+            [
+              -167.88337203384341,
+              29.62550789823012
+            ],
+            [
+              -172.64626329548403,
+              28.20896181794974
+            ],
+            [
+              -176.54267313535857,
+              31.148162090824524
+            ],
+            [
+              -175.56432922504848,
+              35.741206971176496
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+};
+const centroid = getCentroid(data0);
+const centerRotate = [-centroid[0], -centroid[1], 0];
+const sync = { rotate: centerRotate.slice(), centerRotate, renders: [] };
+createGlobe("globe", data0, 3, sync);
+window.addEventListener('resize', () => sync.renders.forEach(r => r()));
+</script>
+</body>
+</html>
