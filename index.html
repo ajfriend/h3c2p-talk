@@ -11,7 +11,7 @@
   <meta name="generator" content="quarto-1.5.57">
 
   <meta name="author" content="AJ Friend">
-  <title>H3 Cells to Polygons, 100x Faster</title>
+  <title>H3 Cells to Polygons, 200x Faster</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
@@ -392,7 +392,7 @@
     <div class="slides">
 
 <section id="title-slide" class="quarto-title-block center">
-  <h1 class="title">H3 Cells to Polygons, 100x Faster</h1>
+  <h1 class="title">H3 Cells to Polygons, 200x Faster</h1>
 
 <div class="quarto-title-authors">
 <div class="quarto-title-author">
@@ -403,18 +403,10 @@ AJ Friend
 </div>
 
 </section>
-<section class="slide level2">
-
-<!-- continuous to/from discrete is a theme... -->
-<!-- Use titles to transition cleanly between ideas -->
-<!-- watch that mit guy's video -->
-<!-- TODO: where do i call out "this is basically just graph theory"? somehwere around "so far, this is all discrete", first time we're doing somethign continuous -->
-<!-- TODO: figure out how big this thing is going to be. how to package it. do the iframe contents get reused? what about the js libraries and the continent data download? -->
-<!-- TODO: do we clearly spell out the algorithm at each step? -->
-<!-- TODO: define CCW and CW once, we use it in the remaining. -->
-</section>
 <section id="about-me" class="slide level2">
 <h2>About me</h2>
+<!-- Use titles to transition cleanly between ideas -->
+<!-- watch that mit guy's video -->
 <ul>
 <li>AJ Friend</li>
 <li>H3 Steering Committee Member</li>
@@ -429,15 +421,16 @@ AJ Friend
 <ul>
 <li>intro to H3</li>
 <li>spherical polygons</li>
-<li>new “cells to polygons” algorithm
+<li>new “cells to polygons” algorithm (in development)
 <ul>
 <li>fixes bugs</li>
 <li>enables global polygons</li>
-<li>100x faster</li>
+<li>200x faster (on large inputs)</li>
 </ul></li>
 </ul>
+<p>slides available at <a href="https://ajfriend.com/h3c2p-talk/">ajfriend.com/h3c2p-talk</a></p>
 </div><div class="column" style="width:40%;">
-<iframe style="border:none; width:100%; height:550px;" src="figs/c2p_globes_stacked.html" title="cells to polygons"></iframe>
+<iframe style="border:none; width:100%; height:600px;" src="figs/c2p_globes_stacked.html" loading="eager" title="cells to polygons"></iframe>
 </div></div>
 </section>
 <section id="theme-benefits-of-discretization" class="slide level2">
@@ -685,43 +678,36 @@ AJ Friend
 <h2></h2>
 <iframe class="fullscreen-iframe" src="figs/nyc3d_deckgl_roundtrip_res9.html" title="NYC roundtrip res 9"></iframe>
 </section>
-<section id="polygon-to-cells" class="slide level2">
-<h2>Polygon to cells</h2>
-<ul>
-<li>do nyc boroughs</li>
-<li>when do we introduce compaction? later? for the gosper island?</li>
-</ul>
-</section>
-<section id="nyc-bor-continuous" class="slide level2">
-<h2>nyc bor continuous</h2>
+<section id="nyc-boroughs-continuous-polygons" class="slide level2">
+<h2>NYC Boroughs: continuous polygons</h2>
 
 <img data-src="figs/nyc_boroughs.png" class="quarto-figure quarto-figure-center r-stretch" style="width:100.0%"></section>
-<section id="nyc-bor-res-8" class="slide level2">
-<h2>nyc bor res 8</h2>
+<section id="nyc-boroughs-res-8-cells" class="slide level2">
+<h2>NYC Boroughs: res 8 cells</h2>
 
 <img data-src="figs/nyc_boroughs_res8.png" class="quarto-figure quarto-figure-center r-stretch" style="width:100.0%"></section>
-<section id="nyc-bor-back-to-continuous" class="slide level2">
-<h2>nyc bor back to continuous</h2>
+<section id="nyc-boroughs-cells-to-polygons" class="slide level2">
+<h2>NYC Boroughs: cells <span class="math inline">\(\to\)</span> polygons</h2>
 
 <img data-src="figs/nyc_boroughs_res8_merged.png" class="quarto-figure quarto-figure-center r-stretch" style="width:100.0%"></section></section>
 <section>
-<section id="new-cells_to_polygon-algorithm" class="title-slide slide level1 center">
-<h1>New cells_to_polygon algorithm</h1>
+<section id="new-algorithm" class="title-slide slide level1 center">
+<h1>New algorithm</h1>
 
 </section>
 <section id="cells-to-polygons" class="slide level2">
 <h2>Cells to polygons</h2>
-<p>today: <strong>new algorithm</strong> to convert H3 cells to <em>spherical</em> polygons</p>
+<p><strong>new algorithm</strong> (WIP) to convert H3 cells to <em>spherical</em> polygons</p>
 <iframe style="border:none; width:100%; height:550px;" src="figs/c2p_globes.html" title="cells to polygons"></iframe>
 </section>
 <section id="why-a-new-algorithm" class="slide level2">
 <h2>Why a new algorithm?</h2>
 <ul>
-<li>bugs</li>
-<li>no global polygons</li>
+<li>reported bugs coming from lat/lng (floating point) comparisons</li>
+<li>couldn’t emit “global” polygons</li>
 <li>could be slow for large regions</li>
 </ul>
-<p>theme: use discretization</p>
+<p><strong>idea</strong>: try a discrete approach with new H3 <strong>Directed Edge</strong> indexes</p>
 </section>
 <section id="spherical-polygons" class="slide level2">
 <h2>Spherical polygons</h2>
@@ -764,8 +750,8 @@ AJ Friend
 <ul>
 <li>loops divide globe into two regions</li>
 <li>need a convention for which is “inside”</li>
-<li>right-hand rule: walk along directed edges, <em>inside</em> is to your left</li>
-<li>outer loops are counter-clockwise</li>
+<li>right-hand rule (RHR): walk along directed edges, <em>inside</em> is to your left</li>
+<li>outer loops are <strong>counter-clockwise</strong> (CCW)</li>
 </ul>
 </div><div class="column" style="width:60%;">
 <iframe style="border:none; width:100%; height:550px;" src="figs/c2p_square.html" title="spherical polygon"></iframe>
@@ -778,7 +764,7 @@ AJ Friend
 <ul>
 <li>reversing vertex order chooses other region as interior</li>
 <li>completely valid polygon, but bigger than a hemisphere</li>
-<li>still “counter-clockwise”?</li>
+<li>would you call that “CCW”?</li>
 <li>RHR holds</li>
 </ul>
 </div><div class="column" style="width:60%;">
@@ -790,7 +776,7 @@ AJ Friend
 <div class="columns">
 <div class="column" style="width:40%;">
 <ul>
-<li>zero or more <strong>holes</strong> contained in outer loop are oriented <strong>clockwise</strong></li>
+<li>zero or more <strong>holes</strong> contained in outer loop are oriented <strong>clockwise</strong> (CW)</li>
 <li>still follows RHR: inside is to the left as you walk</li>
 </ul>
 </div><div class="column" style="width:60%;">
@@ -815,21 +801,12 @@ AJ Friend
 </div></div>
 </section></section>
 <section>
-<section id="the-new-cells_to_poly-algorithm" class="title-slide slide level1 center">
-<h1>The new cells_to_poly algorithm</h1>
+<section id="directed-edges" class="title-slide slide level1 center">
+<h1>Directed Edges</h1>
 
 </section>
-<section id="old-algorithm" class="slide level2">
-<h2>old algorithm</h2>
-<ul>
-<li>used lat/lng points, caused bugs with comparison</li>
-<li>written before we had <code>DirectedEdge</code> type!</li>
-<li>now that we have it… we’ll use edges instead</li>
-<li>didn’t support outputting “global polygons” (like we saw before)</li>
-</ul>
-</section>
-<section id="directed-edges" class="slide level2">
-<h2>Directed edges</h2>
+<section id="h3-directed-edges" class="slide level2">
+<h2>H3 Directed edges</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
 <ul>
@@ -845,8 +822,8 @@ AJ Friend
 </div>
 </div></div>
 </section>
-<section id="directed-edges-1" class="slide level2">
-<h2>Directed edges</h2>
+<section id="h3-directed-edges-1" class="slide level2">
+<h2>H3 Directed edges</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
 <ul>
@@ -866,12 +843,12 @@ AJ Friend
 <h2>Cell to edges to vertices</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
-<p>two transforms underly algorithm:</p>
+<p>two transforms underlie the algorithm:</p>
 <ul>
 <li>cell <span class="math inline">\(c\)</span> <span class="math inline">\(\to\)</span> <em>ordered</em> boundary edges (edges having origin <span class="math inline">\(c\)</span>)</li>
 <li>edge <span class="math inline">\(\to\)</span> vertices</li>
 </ul>
-<p>for a single cell, gives counter-clockwise loop of lat/lng points (i.e., a valid polygon)</p>
+<p>single cell (base case): gives CCW loop of lat/lng points (i.e., a <strong>valid polygon</strong>)</p>
 </div><div class="column" style="width:50%;">
 <div class="quarto-figure quarto-figure-center">
 <figure>
@@ -889,7 +866,7 @@ AJ Friend
 <li>when plotting multiple cells:
 <ul>
 <li>“shrink” edges to avoid overlap</li>
-<li>drop actual cell boundary (blue)</li>
+<li>drop “true” cell boundary (blue)</li>
 </ul></li>
 </ul>
 </div><div class="column" style="width:50%;">
@@ -902,15 +879,16 @@ AJ Friend
 </section>
 <section id="core-idea-cancel-symmetric-pairs" class="slide level2">
 <h2>Core idea: cancel symmetric pairs</h2>
+<div class="algorithm">
 <p><strong>input</strong>: set of H3 cells</p>
 <ol type="1">
-<li>transform to set of edges</li>
-<li>cancel symmetric pairs</li>
-<li>only <strong>boundary edges</strong> remain</li>
-<li>extract lat/lng vertices to form polygon loops</li>
+<li><strong>Transform</strong> cells to set of edges</li>
+<li><strong>Cancel</strong> symmetric pairs → only boundary edges remain</li>
+<li><strong>Extract</strong> lat/lng vertices to form polygon loops</li>
 </ol>
-<p>Note: valid loops are maintained after each step</p>
-<p>(if you know algebraic topology: computing the boundary of a cell complex)</p>
+</div>
+<p>sketch: several details to fill in</p>
+<p><em>(topology aside: computing the boundary of a cell complex)</em></p>
 </section>
 <section id="example-full-disk" class="slide level2">
 <h2>Example: full disk</h2>
@@ -949,7 +927,7 @@ AJ Friend
 <div class="column" style="width:50%;">
 <ul>
 <li>…just the boundary edges</li>
-<li>note: counter-clockwise order!</li>
+<li>note: CCW order!</li>
 </ul>
 </div><div class="column" style="width:50%;">
 <div class="quarto-figure quarto-figure-center">
@@ -964,7 +942,7 @@ AJ Friend
 <div class="columns">
 <div class="column" style="width:35%;">
 <ul>
-<li>31 cells with 3 holes</li>
+<li>28 cells with 3 holes</li>
 </ul>
 </div><div class="column" style="width:65%;">
 <div class="quarto-figure quarto-figure-center">
@@ -995,7 +973,8 @@ AJ Friend
 <div class="column" style="width:35%;">
 <ul>
 <li>just boundary after cancellation</li>
-<li>outer loop CCW, 3 holes CW</li>
+<li>outer loop: CCW</li>
+<li>3 holes: CW</li>
 </ul>
 </div><div class="column" style="width:65%;">
 <div class="quarto-figure quarto-figure-center">
@@ -1005,43 +984,49 @@ AJ Friend
 </div>
 </div></div>
 </section>
-<section id="implementation" class="slide level2">
-<h2>Implementation</h2>
+<section id="whats-missing" class="slide level2">
+<h2>What’s missing?</h2>
 <ul>
-<li>maintain hash map of set of edges</li>
-<li>for each cell, insert each edge</li>
-<li>when inserting edge, check for reverse; remove both if found</li>
+<li>we have the <strong>set</strong> of boundary edges
+<ul>
+<li>and can extract lat/lng vertices</li>
+</ul></li>
+<li>but we need them <strong>ordered</strong> into loops
+<ul>
+<li>“which lat/lng comes after this one?”</li>
+</ul></li>
+<li>…and assigned to polygons (later)</li>
 </ul>
-<p>but we’re still missing something…</p>
 </section></section>
 <section>
 <section id="loop-surgery" class="title-slide slide level1 center">
 <h1>Loop surgery</h1>
 
 </section>
-<section id="maintaining-loop-order" class="slide level2">
-<h2>Maintaining loop order</h2>
+<section id="keeping-edges-in-order" class="slide level2">
+<h2>Keeping edges in order</h2>
 <ul>
-<li>cancellation gives us the <strong>set</strong> of boundary edges</li>
-<li>but we need them <strong>ordered</strong> into loops</li>
-<li>each cell starts as a <strong>doubly-linked loop</strong></li>
-<li>when canceling a pair, <strong>splice</strong> the loops together</li>
+<li>each cell starts as an ordered <strong>doubly-linked loop</strong> of edges (CCW)</li>
+<li><strong>loop surgery</strong>: when canceling a pair, splice the two loops
+<ul>
+<li>update doubly-linked list pointers</li>
+</ul></li>
 </ul>
 </section>
-<section id="two-cells-before-surgery" class="slide level2">
+<section id="two-cells-before-surgery" class="slide level2 smaller">
 <h2>Two cells: before surgery</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
 <p>cells <span class="math inline">\(A\)</span> and <span class="math inline">\(B\)</span> start with <strong>separate</strong> ordered loops like</p>
 <p><span class="math display">\[
 \begin{aligned}
-\cdots \to a^- &amp;\to a \to a^+ \to \cdots \\
-\cdots \to b^- &amp;\to b \to b^+ \to \cdots
+A:\quad \to a^- &amp;\to a \to a^+ \to \\
+B:\quad \to b^- &amp;\to b \to b^+ \to
 \end{aligned}
 \]</span></p>
 <ul>
 <li>edges <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span> are a symmetric pair</li>
-<li><strong>loop surgery</strong>: cancelling should merge the loops</li>
+<li><strong>loop surgery</strong>: canceling should merge the loops</li>
 </ul>
 </div><div class="column" style="width:50%;">
 <div class="quarto-figure quarto-figure-center">
@@ -1051,15 +1036,14 @@ AJ Friend
 </div>
 </div></div>
 </section>
-<section id="two-cells-after-surgery" class="slide level2">
+<section id="two-cells-after-surgery" class="slide level2 smaller">
 <h2>Two cells: after surgery</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
 <p>removing <span class="math inline">\(a\)</span> and <span class="math inline">\(b\)</span> connects their neighbors, forming a single loop:</p>
 <p><span class="math display">\[
 \begin{aligned}
-\cdots \to a^- \to b^+ \to \cdots \\
-\to b^- \to a^+ \to \cdots
+\overline{AB}:\quad \to a^- \to b^+ \to \cdots \to b^- \to a^+ \to
 \end{aligned}
 \]</span></p>
 <ul>
@@ -1276,7 +1260,7 @@ AJ Friend
 </div>
 </div></div>
 </section>
-<section id="implementation-1" class="slide level2">
+<section id="implementation" class="slide level2">
 <h2>Implementation</h2>
 <ul>
 <li>doubly-linked list for previous and next neighbors</li>
@@ -1289,13 +1273,19 @@ AJ Friend
 <span id="cb6-4"><a href=""></a>b<span class="op">-&gt;</span>next<span class="op">-&gt;</span>prev <span class="op">=</span> a<span class="op">-&gt;</span>prev<span class="op">;</span></span>
 <span id="cb6-5"><a href=""></a>b<span class="op">-&gt;</span>prev<span class="op">-&gt;</span>next <span class="op">=</span> a<span class="op">-&gt;</span>next<span class="op">;</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </section>
-<section id="algorithm-up-to-now" class="slide level2">
-<h2>Algorithm (up to now)</h2>
+<section id="algorithm-loop-surgery" class="slide level2">
+<h2>Algorithm (loop surgery)</h2>
+<div class="algorithm">
+<p><strong>input</strong>: set of H3 cells</p>
 <ol type="1">
-<li>add edges from cells</li>
-<li>find symmetric pairs: loop surgery and remove</li>
-<li>output: ordered loops of edges (convertable to lat/lng)</li>
+<li><strong>Transform</strong> cells to directed edges</li>
+<li><strong>Cancel</strong> symmetric edge pairs
+<ul>
+<li>loop surgery</li>
+</ul></li>
+<li><strong>Output</strong> ordered loops of edges</li>
 </ol>
+</div>
 <p>still not done! what are we missing?</p>
 </section></section>
 <section>
@@ -1320,14 +1310,14 @@ AJ Friend
 </section>
 <section id="connected-components" class="slide level2">
 <h2>Connected components</h2>
-<p><strong>solution</strong>: track connected components as we <strong>merge</strong> cells</p>
+<p><strong>idea</strong>: track connected components as we <strong>merge</strong> cells</p>
 <ul>
 <li>each cell starts as its own <strong>connected component</strong></li>
-<li>canceling a symmetric edge pair <strong>merges</strong> components (union-find algorithm)</li>
+<li>canceling a symmetric edge pair <strong>merges</strong> components (<a href="https://en.wikipedia.org/wiki/Disjoint-set_data_structure">union-find algorithm</a>)</li>
 </ul>
 <p><strong>after cancellations</strong>:</p>
 <ul>
-<li>all loops in same connected component belong to one polygon</li>
+<li>loops in same connected component belong to one polygon</li>
 </ul>
 </section>
 <section id="connected-components-1" class="slide level2">
@@ -1350,6 +1340,7 @@ AJ Friend
 <div class="columns">
 <div class="column" style="width:30%;">
 <ul>
+<li>remove one edge</li>
 <li>first pair: 2-cell component merges</li>
 <li>single-cell component won’t change (no neighbors)</li>
 </ul>
@@ -1381,7 +1372,7 @@ AJ Friend
 <div class="columns">
 <div class="column" style="width:30%;">
 <ul>
-<li>components grow</li>
+<li>…</li>
 </ul>
 </div><div class="column" style="width:70%;">
 <div class="quarto-figure quarto-figure-center">
@@ -1396,7 +1387,7 @@ AJ Friend
 <div class="columns">
 <div class="column" style="width:30%;">
 <ul>
-<li>dominated by a few large components</li>
+<li>…</li>
 </ul>
 </div><div class="column" style="width:70%;">
 <div class="quarto-figure quarto-figure-center">
@@ -1411,7 +1402,7 @@ AJ Friend
 <div class="columns">
 <div class="column" style="width:30%;">
 <ul>
-<li>merging continues</li>
+<li>…</li>
 </ul>
 </div><div class="column" style="width:70%;">
 <div class="quarto-figure quarto-figure-center">
@@ -1426,7 +1417,7 @@ AJ Friend
 <div class="columns">
 <div class="column" style="width:30%;">
 <ul>
-<li>a few stragglers left</li>
+<li>…</li>
 </ul>
 </div><div class="column" style="width:70%;">
 <div class="quarto-figure quarto-figure-center">
@@ -1441,7 +1432,7 @@ AJ Friend
 <div class="columns">
 <div class="column" style="width:30%;">
 <ul>
-<li>almost done</li>
+<li>…</li>
 </ul>
 </div><div class="column" style="width:70%;">
 <div class="quarto-figure quarto-figure-center">
@@ -1467,6 +1458,22 @@ AJ Friend
 </figure>
 </div>
 </div></div>
+</section>
+<section id="algorithm-connected-components" class="slide level2">
+<h2>Algorithm (connected components)</h2>
+<div class="algorithm">
+<p><strong>input</strong>: set of H3 cells</p>
+<ol type="1">
+<li><strong>Initialize</strong> each cell with boundary edges</li>
+<li><strong>Cancel</strong> symmetric edge pairs
+<ul>
+<li>loop surgery</li>
+<li>update connected components</li>
+</ul></li>
+<li><strong>Group</strong> loops into polygons</li>
+</ol>
+</div>
+<p>so far: purely discrete; graph theory (no floating point)</p>
 </section></section>
 <section>
 <section id="which-loop-is-outside" class="title-slide slide level1 center">
@@ -1504,94 +1511,226 @@ AJ Friend
 <div class="column" style="width:40%;">
 <ul>
 <li><strong>answer</strong>: any of the 4 loops could be the outer</li>
-<li>choice is arbitrary for spherical polygons</li>
+<li>choice is technically arbitrary for spherical polygons</li>
 <li>but there is a “natural” choice for planar polygons</li>
 </ul>
 </div><div class="column" style="width:60%;">
 <iframe style="border:none; width:100%; height:550px;" src="figs/c2p_cross.html" title="cross polygon"></iframe>
 </div></div>
 </section>
-<section id="no-natural-outer-loop-1" class="slide level2">
-<h2>No natural outer loop</h2>
+<section id="selecting-an-outer-loop" class="slide level2">
+<h2>Selecting an outer loop</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
 <ul>
-<li><p>how do we come up with a rule/convention that picke the natural loop in the obvious case, but works for spherical polygons?</p></li>
-<li><p>answer: pick the one that encloses the smallest area</p></li>
-<li><p>for example, consider the 4 loops on the next slide</p></li>
-<li><p>holes enclose more area than the natural outer loop</p></li>
+<li><strong>problem</strong>: a rule that picks the “natural” loop for small polygons, but also works for spherical polygons</li>
+<li><strong>solution</strong>: choose the loop that encloses (via RHR) the smallest area</li>
 </ul>
+</div><div class="column" style="width:50%;">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="figs/conn_comp_largest.svg" class="quarto-figure quarto-figure-center" style="width:100.0%"></p>
+</figure>
+</div>
+</div></div>
 </section>
-<section id="section-21" class="slide level2" data-background-color="white">
-<h2></h2>
-<iframe class="fullscreen-iframe" src="figs/c2p_holes_grid.html" title="which loop is outside"></iframe>
+<section id="example" class="slide level2">
+<h2>Example</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<p>consider 4 loops in this polygon</p>
+</div><div class="column" style="width:50%;">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="figs/conn_comp_largest.svg" class="quarto-figure quarto-figure-center" style="width:100.0%"></p>
+</figure>
+</div>
+</div></div>
 </section>
-<section id="section-22" class="slide level2" data-background-color="white">
+<section id="section-21" class="slide level2 smaller" data-background-color="white">
 <h2></h2>
 <div class="columns">
-<div class="column" style="width:25%;">
+<div class="column" style="width:35%;">
 <ul>
-<li>little text here</li>
-<li>little text there</li>
+<li>holes enclose “everything outside of the hole”; most of globe</li>
+<li>“obvious” outer loop candidate encloses small region; smallest area</li>
 </ul>
-</div><div class="column" style="width:75%;">
+</div><div class="column" style="width:65%;">
 <iframe style="border:none; width:100%; height:600px;" src="figs/c2p_holes_grid.html" title="which loop is outside"></iframe>
 </div></div>
 </section>
-<section id="section-23" class="slide level2" data-background-color="white">
-<h2></h2>
+<section id="outer-loop-selection" class="slide level2">
+<h2>Outer loop selection</h2>
+<p>for each polygon (connected component):</p>
 <ul>
-<li>compute <strong>area</strong> enclosed by each loop (using RHR orientation)</li>
-<li>loop with <strong>smallest area</strong> = outer loop</li>
-<li>rest are holes</li>
-<li>first use of continuous (non-discrete) math</li>
+<li>compute area enclosed by each loop
+<ul>
+<li>spherical area in <span class="math inline">\([0, 4 \pi]\)</span></li>
+</ul></li>
+<li>smallest area <span class="math inline">\(\to\)</span> outer loop</li>
+<li>remaining loops <span class="math inline">\(\to\)</span> holes</li>
+</ul>
+<p>first use of continuous (non-discrete) math</p>
+</section>
+<section id="algorithm-outer-loop-selection" class="slide level2">
+<h2>Algorithm (outer loop selection)</h2>
+<div class="algorithm">
+<p><strong>input</strong>: set of H3 cells</p>
+<ol type="1">
+<li><strong>Initialize</strong> each cell with boundary edges</li>
+<li><strong>Cancel</strong> symmetric edge pairs
+<ul>
+<li>loop surgery</li>
+<li>update connected components</li>
+</ul></li>
+<li><strong>Group</strong> loops into polygons</li>
+<li><strong>Identify</strong> outer loops by area for each polygon</li>
+<li><strong>Emit</strong> lat/lng MultiPolygon</li>
+</ol>
+</div>
+</section>
+<section id="global-polygons" class="slide level2">
+<h2>Global polygons</h2>
+<p>new algorithm can output global polygons:</p>
+<ul>
+<li>larger than a hemisphere</li>
+<li>crossing the antimeridian</li>
+<li>enclosing the poles</li>
+</ul>
+<p><strong>due to</strong>:</p>
+<ul>
+<li>discrete graph operations work on full globe</li>
+<li>robust spherical area computation</li>
+<li>no need for “planar” geometry anywhere</li>
 </ul>
 </section>
-<section id="assembly" class="slide level2">
-<h2>Assembly</h2>
-<ul>
-<li>sort loops by (component, area)</li>
-<li>first loop per component → outer ring</li>
-<li>remaining loops → holes</li>
-<li>group into <code>MultiPolygon</code></li>
-<li>sort polygons by outer area (descending) for convenience</li>
-</ul>
+<section id="global-polygon-holes" class="slide level2">
+<h2>Global polygon: holes</h2>
+<p><br></p>
+<iframe style="border:none; width:100%; height:550px;" src="figs/c2p_cross.html" title="global polygon with holes"></iframe>
 </section>
-<section id="performance" class="slide level2">
-<h2>Performance</h2>
+<section id="global-polygon-twist" class="slide level2">
+<h2>Global polygon: twist</h2>
+<p><br></p>
+<iframe style="border:none; width:100%; height:550px;" src="figs/c2p_twist.html" title="global polygon twist"></iframe>
+</section>
+<section id="benchmarks" class="slide level2 smaller">
+<h2>Benchmarks</h2>
+<div class="columns">
+<div class="column" style="width:45%;">
+<p>Colorado cells-to-polygon timings (<a href="https://github.com/ajfriend/h3c2p_bench">code</a>)</p>
 <ul>
-<li><strong>~4x faster</strong> than previous implementation on large cell sets</li>
-<li><strong>fixes floating-point bugs</strong> from continuous approach</li>
-<li><strong>enables global polygons</strong>: antimeridian, poles, &gt;hemisphere</li>
-<li>future: <strong>Gosper island</strong> optimization for compacted cells</li>
+<li><strong>old</strong>: original algorithm</li>
+<li><strong>new</strong>: discrete directed edge version
+<ul>
+<li>~7x faster on largest example!</li>
+</ul></li>
 </ul>
+<p><br><br><br></p>
+<p><span class="fragment"><strong>…but what about that 200x speedup?</strong></span></p>
+</div><div class="column" style="width:55%;">
+<table class="bench caption-top" data-quarto-postprocess="true">
+<thead>
+<tr class="header spanner">
+<th colspan="2" data-quarto-table-cell-role="th"></th>
+<th colspan="2" class="sep" data-quarto-table-cell-role="th">time</th>
+<th class="sep" data-quarto-table-cell-role="th">vs old</th>
+</tr>
+<tr class="odd labels">
+<th data-quarto-table-cell-role="th">res</th>
+<th data-quarto-table-cell-role="th">cells</th>
+<th class="sep" data-quarto-table-cell-role="th">old</th>
+<th data-quarto-table-cell-role="th">new</th>
+<th class="sep" data-quarto-table-cell-role="th">new</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>3</td>
+<td>20</td>
+<td class="sep">27 µs</td>
+<td>15 µs</td>
+<td class="sep">1.8x</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>140</td>
+<td class="sep">159 µs</td>
+<td>55 µs</td>
+<td class="sep">2.9x</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>974</td>
+<td class="sep">1.2 ms</td>
+<td>309 µs</td>
+<td class="sep">3.8x</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>6,831</td>
+<td class="sep">8.2 ms</td>
+<td>2.0 ms</td>
+<td class="sep">4.1x</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>47,823</td>
+<td class="sep">55.1 ms</td>
+<td>22.0 ms</td>
+<td class="sep">2.5x</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>334,719</td>
+<td class="sep">409.2 ms</td>
+<td>270.5 ms</td>
+<td class="sep">1.5x</td>
+</tr>
+<tr class="odd">
+<td>9</td>
+<td>2,343,047</td>
+<td class="sep">14.05 s</td>
+<td>2.00 s</td>
+<td class="sep"><strong>7.0x</strong></td>
+</tr>
+</tbody>
+</table>
+</div></div>
 </section></section>
 <section>
-<section id="x-speedup" class="title-slide slide level1 center">
-<h1>100x speedup!?</h1>
+<section id="gosper-island-optimization" class="title-slide slide level1 center">
+<h1>Gosper island optimization</h1>
 
 </section>
-<section id="x-speedup-1" class="slide level2">
-<h2>100x speedup!?</h2>
+<section id="compaction-and-gosper-islands" class="slide level2">
+<h2>Compaction and Gosper Islands</h2>
+<p>discrete directed edges approach laid groundwork for one more optimization:</p>
 <ul>
-<li>i said 100x; what about that?</li>
-<li>need two more pieces: compaction and Gosper Islands</li>
+<li>most work is in <strong>canceling symmetric edge pairs</strong></li>
+<li>what if we can skip many edges upfront?</li>
+<li><strong>idea</strong>: compact cells and initialize with “Gosper island” edge boundaries</li>
 </ul>
 </section>
-<section id="compaction" class="slide level2">
-<h2>Compaction</h2>
+<section id="h3-compaction" class="slide level2">
+<h2>H3 compaction</h2>
 <ul>
-<li>in a set of cells, if we have a complete subset of children, we can <strong>logically</strong> represent them as their parent</li>
-<li>recurse up the hierarchy</li>
-<li>reduction in cell size. (and edges…)</li>
-<li>can compute relatively quickly</li>
+<li>a complete set of children <span class="math inline">\(\to\)</span> replace with parent cell</li>
+<li>recurse up the H3 hierarchy</li>
+<li>can greatly reduce number of cells (and edges…)</li>
+<li>computes relatively quickly</li>
 </ul>
 </section>
-<section id="compaction-uncompacted" class="slide level2">
-<h2>Compaction: uncompacted</h2>
+<section id="example-uncompacted" class="slide level2 smaller">
+<h2>Example: uncompacted</h2>
 <div class="columns">
 <div class="column" style="width:40%;">
 <ul>
-<li>13 res-5 cells</li>
-<li>7 blue (complete set) + 6 green (one removed)</li>
+<li>13 cells
+<ul>
+<li>7 form a complete set (blue)</li>
+<li>6 an incomplete subset (green)</li>
+</ul></li>
 </ul>
 </div><div class="column" style="width:60%;">
 <div class="quarto-figure quarto-figure-center">
@@ -1601,15 +1740,15 @@ AJ Friend
 </div>
 </div></div>
 </section>
-<section id="compaction-compacted" class="slide level2">
-<h2>Compaction: compacted</h2>
+<section id="example-compacted" class="slide level2 smaller">
+<h2>Example: compacted</h2>
 <div class="columns">
 <div class="column" style="width:40%;">
 <ul>
-<li>blue children compact to one res-4 cell</li>
-<li>green stays at res-5 (incomplete)</li>
-<li>but now: gaps and overlaps at the boundary</li>
+<li>compaction replaces blue cells with their parent</li>
+<li>green cells unchanged (not a full set)</li>
 </ul>
+<p><strong>naive cell geometry is misleading</strong>: gaps and overlaps at the boundary!</p>
 </div><div class="column" style="width:60%;">
 <div class="quarto-figure quarto-figure-center">
 <figure>
@@ -1618,13 +1757,17 @@ AJ Friend
 </div>
 </div></div>
 </section>
-<section id="gosper-island" class="slide level2">
-<h2>Gosper island</h2>
+<section id="example-gosper-island" class="slide level2 smaller">
+<h2>Example: gosper island</h2>
 <div class="columns">
 <div class="column" style="width:40%;">
 <ul>
-<li>plot compacted cell as its children’s boundary (Gosper island)</li>
-<li>seamless: no gaps, no overlaps</li>
+<li>parent cell isn’t representing its own geometry
+<ul>
+<li>representing geometry of children</li>
+<li>plot (and interpret) it that way!</li>
+<li>no gaps, no overlaps</li>
+</ul></li>
 </ul>
 </div><div class="column" style="width:60%;">
 <div class="quarto-figure quarto-figure-center">
@@ -1634,90 +1777,238 @@ AJ Friend
 </div>
 </div></div>
 </section>
-<section id="oregon-uncompacted" class="slide level2">
-<h2>Oregon: uncompacted</h2>
+<section id="gosper-island" class="slide level2 smaller">
+<h2>Gosper island</h2>
 <div class="columns">
-<div class="column" style="width:35%;">
+<div class="column" style="width:40%;">
 <ul>
-<li>7,240 cells</li>
-<li>43,440 edges</li>
+<li><strong>Gosper island</strong>: outline of children cells at target resolution
+<ul>
+<li>alternatively, ordered <strong>loop of directed edges</strong></li>
+<li>generalizes single cell boundary</li>
+<li>skips internal edges!</li>
+</ul></li>
 </ul>
-</div><div class="column" style="width:65%;">
+</div><div class="column" style="width:60%;">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="figs/oregon_uncompacted_res6.png" class="quarto-figure quarto-figure-center" style="width:100.0%"></p>
+<p><img data-src="figs/compact_2_gosper.svg" class="quarto-figure quarto-figure-center" style="width:70.0%"></p>
 </figure>
 </div>
 </div></div>
 </section>
-<section id="oregon-compacted" class="slide level2">
-<h2>Oregon: compacted</h2>
+<section id="gosper-island-res-delta-1" class="slide level2">
+<h2>Gosper island: res delta 1</h2>
+
+<img data-src="figs/gosper_delta_1.svg" class="quarto-figure quarto-figure-center r-stretch" style="width:60.0%"></section>
+<section id="gosper-island-res-delta-2" class="slide level2">
+<h2>Gosper island: res delta 2</h2>
+
+<img data-src="figs/gosper_delta_2.svg" class="quarto-figure quarto-figure-center r-stretch" style="width:60.0%"></section>
+<section id="gosper-island-res-delta-3" class="slide level2">
+<h2>Gosper island: res delta 3</h2>
+
+<img data-src="figs/gosper_delta_3.svg" class="quarto-figure quarto-figure-center r-stretch" style="width:60.0%"></section>
+<section id="gosper-island-res-delta-4" class="slide level2">
+<h2>Gosper island: res delta 4</h2>
+
+<img data-src="figs/gosper_delta_4.svg" class="quarto-figure quarto-figure-center r-stretch" style="width:60.0%"></section>
+<section id="connecticut-uncompacted" class="slide level2">
+<h2>Connecticut: uncompacted</h2>
 <div class="columns">
 <div class="column" style="width:35%;">
 <ul>
-<li>550 cells</li>
-<li>8,280 edges</li>
-<li>5.2x fewer edges</li>
-<li>speedup depends on “compactibility”</li>
-<li>need a way to get these edges directly</li>
+<li>resolution: 7</li>
+<li>cells:
+<ul>
+<li>2,409</li>
+</ul></li>
+<li>edges:
+<ul>
+<li>14,454</li>
+</ul></li>
 </ul>
 </div><div class="column" style="width:65%;">
 <div class="quarto-figure quarto-figure-center">
 <figure>
-<p><img data-src="figs/oregon_compacted_res6.png" class="quarto-figure quarto-figure-center" style="width:100.0%"></p>
+<p><img data-src="figs/ct_uncompacted_res7.png" class="quarto-figure quarto-figure-center" style="width:100.0%"></p>
 </figure>
 </div>
 </div></div>
 </section>
-<section id="gosper-island-optimization" class="slide level2">
-<h2>Gosper island optimization</h2>
+<section id="connecticut-compacted" class="slide level2">
+<h2>Connecticut: compacted</h2>
+<div class="columns">
+<div class="column" style="width:35%;">
 <ul>
-<li>compact the input cell set</li>
-<li>for each compacted cell, initialize with its Gosper island boundary (instead of 7 individual child cells)</li>
-<li>plugs directly into the same algorithm</li>
-<li>skip processing millions of internal edges</li>
+<li>resolution: 7</li>
+<li>cells:
+<ul>
+<li>2,409 <span class="math inline">\(\to\)</span> 333</li>
+</ul></li>
+<li>edges:
+<ul>
+<li>14,454 <span class="math inline">\(\to\)</span> 4,182</li>
+</ul></li>
+<li>3.5x fewer edges</li>
+</ul>
+<p><span class="fragment">gets <strong>exponentially</strong> better with finer resolutions</span></p>
+</div><div class="column" style="width:65%;">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="figs/ct_compacted_res7.png" class="quarto-figure quarto-figure-center" style="width:100.0%"></p>
+</figure>
+</div>
+</div></div>
+</section>
+<section id="gosper-island-iterator" class="slide level2">
+<h2>Gosper island iterator</h2>
+<ul>
+<li><strong>need</strong>: fast iteration over boundary edges; skip internal
+<ul>
+<li><a href="https://github.com/uber/h3/pull/1138">open PR</a></li>
+</ul></li>
+<li>this plugs directly into the existing algorithm</li>
+<li>speedup depends on input “compactibility”</li>
+</ul>
+</section>
+<section id="algorithm-gosper" class="slide level2">
+<h2>Algorithm (Gosper)</h2>
+<div class="algorithm">
+<ol type="1">
+<li><strong>Compact</strong> input cells</li>
+<li><strong>Initialize</strong> each cell with Gosper island edges</li>
+<li><strong>Cancel</strong> symmetric edge pairs
+<ul>
+<li>loop surgery</li>
+<li>update connected components</li>
+</ul></li>
+<li><strong>Group</strong> loops into polygons</li>
+<li><strong>Identify</strong> outer loops by area for each polygon</li>
+<li><strong>Emit</strong> lat/lng MultiPolygon</li>
+</ol>
+</div>
+</section>
+<section id="benchmarks-1" class="slide level2 smaller">
+<h2>Benchmarks</h2>
+<div class="columns">
+<div class="column" style="width:45%;">
+<p>Colorado cells-to-polygon timings (<a href="https://github.com/ajfriend/h3c2p_bench">code</a>)</p>
+<ul>
+<li><strong>old</strong>: original algorithm</li>
+<li><strong>new</strong>: discrete directed edge version</li>
+<li><strong>gosper</strong>: new + Gosper optimization
+<ul>
+<li>~200x faster on largest example!</li>
+<li>includes <code>compactCells</code> time (additional 2x faster without!)</li>
+</ul></li>
+</ul>
+</div><div class="column" style="width:55%;">
+<table class="bench caption-top" data-quarto-postprocess="true">
+<thead>
+<tr class="header spanner">
+<th colspan="2" data-quarto-table-cell-role="th"></th>
+<th class="sep" data-quarto-table-cell-role="th">time</th>
+<th colspan="2" class="sep" data-quarto-table-cell-role="th">speedup vs old</th>
+</tr>
+<tr class="odd labels">
+<th data-quarto-table-cell-role="th">res</th>
+<th data-quarto-table-cell-role="th">cells</th>
+<th class="sep" data-quarto-table-cell-role="th">old</th>
+<th class="sep" data-quarto-table-cell-role="th">new</th>
+<th data-quarto-table-cell-role="th">gosper</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>3</td>
+<td>20</td>
+<td class="sep">27 µs</td>
+<td class="sep">1.8x</td>
+<td>1.9x</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>140</td>
+<td class="sep">159 µs</td>
+<td class="sep">2.9x</td>
+<td>3.4x</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>974</td>
+<td class="sep">1.2 ms</td>
+<td class="sep">3.8x</td>
+<td>7.0x</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>6,831</td>
+<td class="sep">8.2 ms</td>
+<td class="sep">4.1x</td>
+<td>13.3x</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>47,823</td>
+<td class="sep">55.1 ms</td>
+<td class="sep">2.5x</td>
+<td>22.2x</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>334,719</td>
+<td class="sep">409.2 ms</td>
+<td class="sep">1.5x</td>
+<td>40.4x</td>
+</tr>
+<tr class="odd">
+<td>9</td>
+<td>2,343,047</td>
+<td class="sep">14.05 s</td>
+<td class="sep">7.0x</td>
+<td><strong>198.3x</strong></td>
+</tr>
+</tbody>
+</table>
+</div></div>
+</section>
+<section id="work-status" class="slide level2">
+<h2>Work status</h2>
+<ul>
+<li>new <code>cellsToMultiPolygon</code>: merged to <a href="https://github.com/uber/h3">uber/h3</a>
+<ul>
+<li>targeting v4.5 release</li>
+</ul></li>
+<li>early <code>h3-py</code> release available now:
+<ul>
+<li><a href="https://pypi.org/project/h3/4.5.0a2/"><code>pip install h3==4.5.0a2</code></a></li>
+</ul></li>
+<li>Gosper island edge iterator: <a href="https://github.com/uber/h3/pull/1138">open PR</a></li>
+<li>future: profiling for further speedups</li>
+</ul>
+</section>
+<section id="summary" class="slide level2">
+<h2>Summary</h2>
+<ul>
+<li>discretization is useful</li>
+<li>H3 does this for geospatial data</li>
+<li>new <code>cellsToMultiPolygon</code> shows the payoff:
+<ul>
+<li>avoids floating-point bugs</li>
+<li>enables global polygons</li>
+<li>200x faster on large inputs</li>
+</ul></li>
 </ul>
 </section></section>
-<section>
-<section id="benchmarks" class="title-slide slide level1 center">
-<h1>Benchmarks</h1>
-
-</section>
-<section id="benchmarks-1" class="slide level2">
-<h2>benchmarks</h2>
-<ul>
-<li>boom 100x</li>
-<li>still room for improvement</li>
-</ul>
-</section></section>
-<section>
-<section id="where-to-find-this" class="title-slide slide level1 center">
-<h1>Where to find this</h1>
-
-</section>
-<section id="where-to-find-this-1" class="slide level2">
-<h2>where to find this</h2>
-<ul>
-<li>basic <code>cells_to_poly</code> merged to master</li>
-<li>aim for v4.5 release</li>
-<li>available in alpha release of h3-py at ….</li>
-<li>gosper island is an open PR at …</li>
-</ul>
-</section>
-<section id="moral" class="slide level2">
-<h2>Moral</h2>
-<ul>
-<li>use discretization to your advantage</li>
-<li>H3’s directed edges let us avoid floating point entirely (until area)</li>
-<li>Gosper island optimization falls out naturally — same algorithm, coarser edges</li>
-<li>payoff: 100x faster, fixes bugs, enables global polygons</li>
-</ul>
+<section id="thank-you-questions" class="title-slide slide level1 center">
+<h1>Thank you! Questions?</h1>
 <div class="quarto-auto-generated-content">
 <div class="footer footer-default">
 
 </div>
 </div>
-</section></section>
+</section>
     </div>
   </div>
 
