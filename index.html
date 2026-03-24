@@ -410,8 +410,8 @@ AJ Friend
 <ul>
 <li>AJ Friend</li>
 <li>H3 Steering Committee Member</li>
-<li><code>h3-py</code> maintainer</li>
-<li>Former Applied Scientist; Uber Eats Realtime Pricing</li>
+<li><code>h3-py</code> Maintainer</li>
+<li>Former Applied Scientist, Uber Eats Realtime Pricing</li>
 </ul>
 </section>
 <section id="content" class="slide level2">
@@ -544,13 +544,13 @@ AJ Friend
 <ul>
 <li>use H3 anywhere; many bindings and implementations</li>
 <li><strong>core library</strong>: written in C</li>
-<li><strong>bindings or implementations</strong>: Python, R, Java, Go, JavaScript, Rust, …</li>
-<li><strong>databases</strong>: DuckDB, Postgres, SQLite, Presto, Snowflake, Spark, Clickhouse, …</li>
+<li><strong>bindings or implementations</strong>: Python, R, Java, Go, JavaScript, Rust…</li>
+<li><strong>databases</strong>: DuckDB, Postgres, SQLite, Presto, Snowflake, Spark, Clickhouse…</li>
 </ul>
 </section>
 <section id="data-translation" class="slide level2">
 <h2>Data translation</h2>
-<p>can do a lot with data in H3 (upcoming talks)… <em>but first</em>, you need to get it there, e.g.,</p>
+<p>can do a lot with data in H3 (upcoming talks)…<em>but first</em>, you need to get it there, e.g.,</p>
 <ol type="1">
 <li>data starts in <strong>continuous</strong> format like GeoJSON, WKT, Shapefile, etc.</li>
 <li>transform to <strong>discrete</strong> H3 cells</li>
@@ -679,15 +679,15 @@ AJ Friend
 <iframe class="fullscreen-iframe" src="figs/nyc3d_deckgl_roundtrip_res9.html" title="NYC roundtrip res 9"></iframe>
 </section>
 <section id="nyc-boroughs-continuous-polygons" class="slide level2">
-<h2>NYC Boroughs: continuous polygons</h2>
+<h2>NYC boroughs: continuous polygons</h2>
 
 <img data-src="figs/nyc_boroughs.png" class="quarto-figure quarto-figure-center r-stretch" style="width:100.0%"></section>
 <section id="nyc-boroughs-res-8-cells" class="slide level2">
-<h2>NYC Boroughs: res 8 cells</h2>
+<h2>NYC boroughs: res 8 cells</h2>
 
 <img data-src="figs/nyc_boroughs_res8.png" class="quarto-figure quarto-figure-center r-stretch" style="width:100.0%"></section>
 <section id="nyc-boroughs-cells-to-polygons" class="slide level2">
-<h2>NYC Boroughs: cells <span class="math inline">\(\to\)</span> polygons</h2>
+<h2>NYC boroughs: cells <span class="math inline">\(\to\)</span> polygons</h2>
 
 <img data-src="figs/nyc_boroughs_res8_merged.png" class="quarto-figure quarto-figure-center r-stretch" style="width:100.0%"></section></section>
 <section>
@@ -707,7 +707,7 @@ AJ Friend
 <li>couldn’t emit “global” polygons</li>
 <li>could be slow for large regions</li>
 </ul>
-<p><strong>idea</strong>: try a discrete approach with new H3 <strong>Directed Edge</strong> indexes</p>
+<p><strong>idea</strong>: try a discrete approach with new H3 <strong>directed edge</strong> indexes</p>
 </section>
 <section id="spherical-polygons" class="slide level2">
 <h2>Spherical polygons</h2>
@@ -750,7 +750,7 @@ AJ Friend
 <ul>
 <li>loops divide globe into two regions</li>
 <li>need a convention for which is “inside”</li>
-<li>right-hand rule (RHR): walk along directed edges, <em>inside</em> is to your left</li>
+<li>right-hand rule (RHR): walk along directed edges, <em>inside</em> is to your left (apologies)</li>
 <li>outer loops are <strong>counter-clockwise</strong> (CCW)</li>
 </ul>
 </div><div class="column" style="width:60%;">
@@ -802,16 +802,16 @@ AJ Friend
 </section></section>
 <section>
 <section id="directed-edges" class="title-slide slide level1 center">
-<h1>Directed Edges</h1>
+<h1>Directed edges</h1>
 
 </section>
 <section id="h3-directed-edges" class="slide level2">
-<h2>H3 Directed edges</h2>
+<h2>H3 directed edges</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
 <ul>
-<li><strong>directed edges</strong>: defined by adjacent <strong>origin</strong> and <strong>destination</strong> cells</li>
-<li>flipping order reverses the edge</li>
+<li>H3 <strong>directed edge</strong> mode: defined by adjacent <strong>origin</strong> and <strong>destination</strong> cells</li>
+<li>flip order to reverse edge</li>
 <li>interpretation for polygons: directed arc along boundary of cell</li>
 </ul>
 </div><div class="column" style="width:50%;">
@@ -823,11 +823,12 @@ AJ Friend
 </div></div>
 </section>
 <section id="h3-directed-edges-1" class="slide level2">
-<h2>H3 Directed edges</h2>
+<h2>H3 directed edges</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
 <ul>
-<li><strong>discrete</strong> representation as <code>uint64</code> e.g., <code>1192a1072d6bffff</code></li>
+<li><strong>discrete</strong> alternative to pairs of lat/lng for edges</li>
+<li>represent as <code>uint64</code>: <code>1192a1072d6bffff</code></li>
 <li>can be hashed, compared exactly</li>
 <li>no floating point issues</li>
 </ul>
@@ -848,8 +849,12 @@ AJ Friend
 <li>cell <span class="math inline">\(c\)</span> <span class="math inline">\(\to\)</span> <em>ordered</em> boundary edges (edges having origin <span class="math inline">\(c\)</span>)</li>
 <li>edge <span class="math inline">\(\to\)</span> vertices</li>
 </ul>
-<p>single cell (base case): gives CCW loop of lat/lng points (i.e., a <strong>valid polygon</strong>)</p>
-<p>note: we’ll work with edges throughout; convert to lat/lng vertices at the end</p>
+<p>single cell base case:</p>
+<ul>
+<li>edges give CCW loop of lat/lng points (i.e., a <strong>valid polygon</strong>)</li>
+<li>build more complex polygons from this starting point</li>
+</ul>
+<p>note: focus on edges throughout; convert to lat/lng vertices at the end</p>
 </div><div class="column" style="width:50%;">
 <div class="quarto-figure quarto-figure-center">
 <figure>
@@ -863,6 +868,7 @@ AJ Friend
 <div class="columns">
 <div class="column" style="width:50%;">
 <ul>
+<li>building from base case, how do cells <em>interact</em>?</li>
 <li><strong>symmetric pair</strong>: edge and its reverse</li>
 <li>when plotting multiple cells:
 <ul>
@@ -889,7 +895,7 @@ AJ Friend
 </ol>
 </div>
 <p>sketch: several details to fill in</p>
-<p><em>(topology aside: computing the boundary of a cell complex)</em></p>
+<p><em>(topological aside: computing the boundary of a cell complex)</em></p>
 </section>
 <section id="example-full-disk" class="slide level2">
 <h2>Example: full disk</h2>
@@ -1007,10 +1013,10 @@ AJ Friend
 <section id="keeping-edges-in-order" class="slide level2">
 <h2>Keeping edges in order</h2>
 <ul>
-<li>each cell starts as an ordered <strong>doubly-linked loop</strong> of edges (CCW)</li>
+<li>each cell starts as an ordered <strong>doubly linked loop</strong> of edges (CCW)</li>
 <li><strong>loop surgery</strong>: when canceling a pair, splice the two loops
 <ul>
-<li>update doubly-linked list pointers</li>
+<li>update doubly linked list pointers</li>
 </ul></li>
 </ul>
 </section>
@@ -1127,7 +1133,9 @@ B:\quad \to b^- &amp;\to b \to b^+ \to
 <h2>Example: four cells</h2>
 <div class="columns">
 <div class="column" style="width:50%;">
-<p>(also a valid intermediate state)</p>
+<ul>
+<li>also a valid intermediate state</li>
+</ul>
 </div><div class="column" style="width:50%;">
 <div class="quarto-figure quarto-figure-center">
 <figure>
@@ -1264,7 +1272,7 @@ B:\quad \to b^- &amp;\to b \to b^+ \to
 <section id="implementation" class="slide level2">
 <h2>Implementation</h2>
 <ul>
-<li>doubly-linked list for previous and next neighbors</li>
+<li>doubly linked list for previous and next neighbors</li>
 <li>emit edges for cells in order, initialize linked list</li>
 <li>surgery involves updating symmetric pair (<code>a</code>, <code>b</code>) like:</li>
 </ul>
@@ -1306,7 +1314,7 @@ B:\quad \to b^- &amp;\to b \to b^+ \to
 <ul>
 <li>which loops belong to which polygons?</li>
 <li>how many polygons?</li>
-<li>which loops are outer vs holes?</li>
+<li>which loops are outer vs.&nbsp;holes?</li>
 </ul>
 </section>
 <section id="connected-components" class="slide level2">
@@ -1341,7 +1349,7 @@ B:\quad \to b^- &amp;\to b \to b^+ \to
 <div class="columns">
 <div class="column" style="width:30%;">
 <ul>
-<li>remove one edge</li>
+<li>remove 1 edge</li>
 <li>first pair: 2-cell component merges</li>
 <li>single-cell component won’t change (no neighbors)</li>
 </ul>
@@ -1437,7 +1445,7 @@ B:\quad \to b^- &amp;\to b \to b^+ \to
 <div class="column" style="width:30%;">
 <ul>
 <li>3 components remain</li>
-<li>largest component has four loops</li>
+<li>largest component has 4 loops</li>
 <li>which loop is outside, and which are holes?</li>
 </ul>
 </div><div class="column" style="width:70%;">
@@ -1623,7 +1631,7 @@ B:\quad \to b^- &amp;\to b \to b^+ \to
 <tr class="header spanner">
 <th colspan="2" data-quarto-table-cell-role="th"></th>
 <th colspan="2" class="sep" data-quarto-table-cell-role="th">time</th>
-<th class="sep" data-quarto-table-cell-role="th">vs old</th>
+<th class="sep" data-quarto-table-cell-role="th">vs. old</th>
 </tr>
 <tr class="odd labels">
 <th data-quarto-table-cell-role="th">res</th>
@@ -1693,7 +1701,7 @@ B:\quad \to b^- &amp;\to b \to b^+ \to
 
 </section>
 <section id="compaction-and-gosper-islands" class="slide level2">
-<h2>Compaction and Gosper Islands</h2>
+<h2>Compaction and Gosper islands</h2>
 <p>discrete directed edges approach laid groundwork for one more optimization:</p>
 <ul>
 <li>most work is in <strong>canceling symmetric edge pairs</strong></li>
@@ -1747,7 +1755,7 @@ B:\quad \to b^- &amp;\to b \to b^+ \to
 </div></div>
 </section>
 <section id="example-gosper-island" class="slide level2 smaller">
-<h2>Example: gosper island</h2>
+<h2>Example: Gosper island</h2>
 <div class="columns">
 <div class="column" style="width:40%;">
 <ul>
@@ -1898,7 +1906,7 @@ B:\quad \to b^- &amp;\to b \to b^+ \to
 <tr class="header spanner">
 <th colspan="2" data-quarto-table-cell-role="th"></th>
 <th class="sep" data-quarto-table-cell-role="th">time</th>
-<th colspan="2" class="sep" data-quarto-table-cell-role="th">speedup vs old</th>
+<th colspan="2" class="sep" data-quarto-table-cell-role="th">speedup vs. old</th>
 </tr>
 <tr class="odd labels">
 <th data-quarto-table-cell-role="th">res</th>
